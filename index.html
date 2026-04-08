@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NONIOAEY - Skin Builder Pro (God's Eye View)</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Mitr', 'sans-serif'] },
+                    colors: { theme: { bg: '#020617', primary: '#1E3A8A', secondary: '#0F172A', text: '#F8FAFC' } },
+                    boxShadow: { 'soft': '0 10px 25px -5px rgba(30, 58, 138, 0.5)', 'card': '0 4px 20px -2px rgba(0, 0, 0, 0.8)' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #020617; color: #F8FAFC; overflow-x: hidden; touch-action: manipulation; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #1E3A8A; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: #0F172A; }
+        
+        .stage-wrapper { width: 100%; max-height: 75vh; overflow-x: auto; overflow-y: auto; padding: 40px 20px; }
+        #stage { position: relative; }
+        
+        #collage { display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; text-align: left; width: var(--cw, 800px); min-width: var(--cw, 800px); position: absolute; top: 0; left: 0; isolation: isolate; }
+        
+        .item { 
+            position: relative; 
+            width: var(--w, 150px); 
+            height: calc(var(--w) * 1.5); 
+            margin-right: var(--mx, 0px); 
+            margin-bottom: var(--my, 0px); 
+            cursor: grab; 
+            display: flex; 
+            align-items: flex-end; 
+            justify-content: center; 
+            transform: translateZ(0); 
+            transition: all 0.2s ease;
+        }
+        
+        .item img { 
+            position: relative;
+            height: 100%; 
+            width: auto; 
+            max-width: 150%; 
+            object-fit: contain; 
+            object-position: bottom center; 
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6)); 
+            pointer-events: none; 
+            transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(calc(var(--zoom, 1.2) * var(--ls, 1)));
+            transform-origin: bottom center;
+            transition: transform 0.1s ease-out;
+        }
+
+        #collage.edit-mode-active .item { cursor: pointer; }
+        #collage.edit-mode-active .item:hover::after {
+            content: ''; position: absolute; inset: 0; background: rgba(59, 130, 246, 0.1); border-radius: 12px; pointer-events: none; z-index: 9999;
+        }
+        .item.active-editing::after {
+            content: ''; position: absolute; inset: -5px; border: 2px dashed #EC4899; background: rgba(236, 72, 153, 0.15); border-radius: 16px; pointer-events: none; z-index: 9999;
+        }
+        
+        /* Glassmorphism Styles */
+        .glass-modal { 
+            background: rgba(15, 23, 42, 0.4); 
+            backdrop-filter: blur(25px); 
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .skin-selected { border-color: #FFB6C1 !important; transform: scale(0.95); opacity: 0.8; }
+        .skin-selected .check-icon { display: flex !important; }
+        
+        #load { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.98); backdrop-filter: blur(10px); z-index: 50000; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        
+        .char-btn.active { background-color: #1E3A8A; color: white; border-color: #1E3A8A; transform: scale(1.05); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        #controlPad {
+            transform: translate(-50%, 120%) scale(0.9);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            width: max-content;
+        }
+        #controlPad.show-pad {
+            transform: translate(-50%, 0px) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-theme-primary relative overflow-x-hidden relative">
+
+    <div class="max-w-4xl mx-auto min-h-screen bg-theme-bg/90 sm:shadow-soft relative flex flex-col border-x border-theme-secondary container-main overflow-x-hidden pb-10">
+        
+        <header class="bg-gradient-to-br from-theme-secondary/80 to-theme-bg/50 pt-10 pb-8 px-6 text-center border-b border-theme-primary/30 backdrop-blur-sm">
+            <div class="inline-flex items-center gap-2 bg-theme-primary/20 px-6 py-2 rounded-full border border-theme-primary shadow-soft">
+                <i data-lucide="sparkles" class="w-4 h-4 text-blue-400"></i>
+                <h1 class="text-2xl font-bold tracking-[0.2em] text-white uppercase">NONIOAEY</h1>
+                <i data-lucide="sparkles" class="w-4 h-4 text-blue-400"></i>
+            </div>
+            <p class="mt-2 text-xs text-slate-400">Control Pad Edition ( เริ่ดของจริง 👑 )</p>
+        </header>
+
+        <main class="flex-1 px-4 py-6 space-y-6 relative z-10">
+            <section class="glass-section rounded-[30px] p-5">
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6 text-center">
+                    <div><label class="text-[9px] font-bold text-slate-400">สกิน/แถว</label><input type="number" id="cols" value="13" oninput="refresh()" class="w-full bg-theme-bg/50 border border-slate-700/50 text-white rounded-xl py-2 text-center text-sm font-bold outline-none focus:border-blue-500 transition-colors"></div>
+                    <div><label class="text-[9px] font-bold text-slate-400">กว้าง</label><input type="number" id="w" value="150" oninput="refresh()" class="w-full bg-theme-bg/50 border border-slate-700/50 text-white rounded-xl py-2 text-center text-sm font-bold outline-none focus:border-blue-500 transition-colors"></div>
+                    <div><label class="text-[9px] font-bold text-slate-400">ซ้อน X</label><input type="number" id="mx" value="-30" oninput="refresh()" class="w-full bg-theme-bg/50 border border-slate-700/50 text-white rounded-xl py-2 text-center text-sm font-bold outline-none focus:border-blue-500 transition-colors"></div>
+                    <div><label class="text-[9px] font-bold text-slate-400">ซ้อน Y</label><input type="number" id="my" value="-40" oninput="refresh()" class="w-full bg-theme-bg/50 border border-slate-700/50 text-white rounded-xl py-2 text-center text-sm font-bold outline-none focus:border-blue-500 transition-colors"></div>
+                    <div><label class="text-[9px] font-bold text-pink-400">ซูมรูป</label><input type="number" id="zoom" value="1.2" step="0.1" oninput="refresh()" class="w-full bg-theme-primary/20 border border-theme-primary/50 text-white rounded-xl py-2 text-center text-sm font-bold outline-none focus:border-pink-500 transition-colors"></div>
+                    <div><label class="text-[9px] font-bold text-emerald-400">ย่อจอ</label><input type="number" id="boardZoom" value="100" step="10" oninput="refresh()" class="w-full bg-emerald-500/20 border border-emerald-500/50 text-white rounded-xl py-2 text-center text-sm font-bold outline-none focus:border-emerald-400 transition-colors"></div>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <button onclick="openLibrary()" class="bg-theme-primary/90 backdrop-blur text-white py-4 rounded-2xl font-bold shadow-[0_4px_15px_rgba(30,58,138,0.5)] flex items-center justify-center gap-2 hover:bg-blue-600 transition-all active:scale-[0.98]">
+                        <i data-lucide="layout-grid" class="w-5 h-5"></i> เลือกสกินหลายรูปพร้อมกัน
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="document.getElementById('file').click()" class="flex-1 bg-transparent text-blue-400 py-3 rounded-xl font-bold border-2 border-dashed border-theme-primary/50 hover:bg-theme-primary/20 transition-all">อัปโหลดเอง</button>
+                        <button onclick="save()" class="flex-1 bg-white/90 backdrop-blur text-theme-bg py-3 rounded-xl font-bold shadow-lg hover:bg-white transition-all active:scale-[0.98]">บันทึกรูปภาพ</button>
+                    </div>
+                    <input type="file" id="file" multiple accept="image/*" class="hidden">
+                </div>
+            </section>
+
+            <section class="glass-section rounded-[40px] min-h-[500px] flex flex-col overflow-hidden relative">
+                
+                <div class="flex justify-end gap-2 p-4 border-b border-white/10 bg-black/20 z-10 relative backdrop-blur-md">
+                    <button onclick="fitToScreen()" class="bg-emerald-600/80 backdrop-blur text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 text-xs border border-white/20 transition-all hover:bg-emerald-500 active:scale-95">
+                        <i data-lucide="maximize" class="w-4 h-4"></i> ย่อพอดีจอ 👁️
+                    </button>
+                    <button onclick="toggleEditMode(this)" id="editModeBtn" class="bg-slate-700/80 backdrop-blur text-white px-4 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 text-xs border border-white/20 transition-all hover:bg-slate-600 active:scale-95">
+                        <i data-lucide="settings-2" class="w-4 h-4"></i> โหมดปรับแต่งรูป
+                    </button>
+                </div>
+
+                <div class="stage-wrapper custom-scroll flex-1 relative">
+                    <div id="stage"><div id="collage"></div></div>
+                </div>
+            </section>
+        </main>
+
+        <div id="controlPad" class="fixed bottom-6 left-1/2 glass-modal px-8 py-5 rounded-[35px] hidden flex-col items-center gap-4 z-[60000]">
+            <div class="text-[10px] font-bold text-pink-400 flex items-center gap-1 uppercase tracking-widest"><i data-lucide="gamepad-2" class="w-3 h-3"></i> VIP Control Panel</div>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-8">
+                <div class="grid grid-cols-3 gap-2">
+                    <div></div>
+                    <button onclick="adjustActive(0, -5)" class="w-11 h-11 bg-blue-600/80 rounded-xl flex items-center justify-center hover:bg-blue-500 active:scale-90 text-white shadow-lg border border-white/20 backdrop-blur-sm"><i data-lucide="chevron-up"></i></button>
+                    <div></div>
+                    <button onclick="adjustActive(-5, 0)" class="w-11 h-11 bg-blue-600/80 rounded-xl flex items-center justify-center hover:bg-blue-500 active:scale-90 text-white shadow-lg border border-white/20 backdrop-blur-sm"><i data-lucide="chevron-left"></i></button>
+                    <div class="w-11 h-11 bg-black/30 rounded-xl flex items-center justify-center text-white/50 border border-white/10 backdrop-blur-sm"><i data-lucide="circle" class="w-3 h-3"></i></div>
+                    <button onclick="adjustActive(5, 0)" class="w-11 h-11 bg-blue-600/80 rounded-xl flex items-center justify-center hover:bg-blue-500 active:scale-90 text-white shadow-lg border border-white/20 backdrop-blur-sm"><i data-lucide="chevron-right"></i></button>
+                    <div></div>
+                    <button onclick="adjustActive(0, 5)" class="w-11 h-11 bg-blue-600/80 rounded-xl flex items-center justify-center hover:bg-blue-500 active:scale-90 text-white shadow-lg border border-white/20 backdrop-blur-sm"><i data-lucide="chevron-down"></i></button>
+                    <div></div>
+                </div>
+
+                <div class="flex flex-col gap-3 border-l border-white/10 pl-8 shrink-0 min-w-[140px]">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="scaleActive(0.05)" class="h-12 bg-emerald-600/80 rounded-xl flex items-center justify-center hover:bg-emerald-500 active:scale-90 text-white shadow-md border border-white/20 backdrop-blur-sm font-bold gap-1 text-xs"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                        <button onclick="scaleActive(-0.05)" class="h-12 bg-slate-700/80 rounded-xl flex items-center justify-center hover:bg-slate-600 active:scale-90 text-white shadow-md border border-white/20 backdrop-blur-sm font-bold gap-1 text-xs"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                    </div>
+                    <button onclick="deleteActive()" class="w-full h-12 bg-red-600/80 rounded-xl flex items-center justify-center hover:bg-red-500 active:scale-90 text-white shadow-md font-bold text-xs gap-2 border border-white/20 backdrop-blur-sm">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> ลบรูปสกิน
+                    </button>
+                </div>
+            </div>
+            <button onclick="closeControlPad()" class="absolute -top-3 -right-3 w-9 h-9 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center border border-pink-500/50 text-white hover:bg-black/80 shadow-xl font-bold transition-all">✕</button>
+        </div>
+
+        <div id="libraryModal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center p-2 sm:p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-md" onclick="closeLibrary()"></div>
+            <div class="glass-modal w-full max-w-3xl h-[90vh] rounded-[30px] sm:rounded-[40px] shadow-2xl relative flex flex-col overflow-hidden border border-white/10">
+                <div class="p-5 flex justify-between items-center border-b border-white/10 bg-black/20">
+                    <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2 italic"><i data-lucide="image" class="text-blue-400"></i> เลือกสกิน</h3>
+                    <button onclick="closeLibrary()" class="w-8 h-8 rounded-full bg-white/10 shadow-sm flex items-center justify-center font-bold text-white/70 hover:text-white hover:bg-white/20 transition-all">✕</button>
+                </div>
+                
+                <div class="px-5 py-3 space-y-3 bg-black/10">
+                    <input type="text" id="libSearch" placeholder="พิมพ์ชื่อตัวละครหรือสกิน..." class="w-full p-3 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-pink-400/50 focus:bg-black/60 transition-all text-sm backdrop-blur-sm">
+                    <div id="charFilter" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar"></div>
+                </div>
+                
+                <div id="libGrid" class="flex-1 overflow-y-auto p-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 content-start pb-32"></div>
+
+                <div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 via-black/50 to-transparent backdrop-blur-[2px]">
+                    <button onclick="confirmSelection()" id="confirmBtn" class="w-full bg-pink-500/90 backdrop-blur text-white py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-pink-400 transition-all opacity-50 pointer-events-none active:scale-[0.98]">
+                        เพิ่ม <span id="selectCount">0</span> สกินลงกระดาน
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="load">
+            <div class="relative flex flex-col items-center w-64 max-w-full px-4 text-center">
+                <i data-lucide="cpu" class="w-14 h-14 text-pink-400 mb-4 opacity-90 animate-bounce"></i>
+                <h3 class="text-white font-bold text-xl tracking-widest uppercase mb-4 shadow-black drop-shadow-md">Processing...</h3>
+                <div class="w-full bg-black/50 rounded-full h-4 mb-3 overflow-hidden border border-white/10 backdrop-blur-sm">
+                    <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-pink-500 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+                <p id="progressText" class="text-pink-400 font-bold text-lg">0% (0/0)</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const collage = document.getElementById('collage');
+        const load = document.getElementById('load');
+        const controlPad = document.getElementById('controlPad');
+        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR7BKWYQRWWJSCvoT8gnPcTzU0HGylpQp-tgx7ioueEydu-C8FdLM7nwpKwa_fjAVlpWAGVSHGZuL2X/pub?output=csv';
+        let allSkins = [];
+        let selectedSkins = []; 
+        let activeItem = null; 
+
+        function updateZ() {
+            const items = document.querySelectorAll('.item:not(.sortable-ghost)');
+            let cols = Math.max(1, parseInt(document.getElementById('cols').value) || 13);
+            for (let i = 0; i < items.length; i++) {
+                let row = Math.floor(i / cols);
+                let col = i % cols;             
+                let z = (row * 1000) + (cols - col);
+                items[i].style.zIndex = z; 
+                const img = items[i].querySelector('img');
+                if (img) img.style.zIndex = z; 
+            }
+        }
+
+        function refresh() {
+            let colsEl = document.getElementById('cols');
+            let wEl = document.getElementById('w');
+            let mxEl = document.getElementById('mx');
+            let myEl = document.getElementById('my');
+            let zoomEl = document.getElementById('zoom');
+            let boardZoomEl = document.getElementById('boardZoom');
+
+            let cols = Math.max(1, parseInt(colsEl.value) || 13);
+            let w = parseFloat(wEl.value) || 150;
+            let mx = parseFloat(mxEl.value) || -30;
+            let my = parseFloat(myEl.value) || -40;
+            let zoom = parseFloat(zoomEl.value) || 1.2;
+            let boardScale = parseFloat(boardZoomEl.value) / 100 || 1; 
+            
+            let exactWidth = w + ((cols - 1) * (w + mx)) + 15; 
+            
+            collage.style.setProperty('--cw', exactWidth + 'px');
+            collage.style.setProperty('--w', w + 'px');
+            collage.style.setProperty('--mx', mx + 'px');
+            collage.style.setProperty('--my', my + 'px');
+            collage.style.setProperty('--zoom', zoom);
+            
+            let totalItems = document.querySelectorAll('.item:not(.sortable-ghost)').length;
+            
+            if(totalItems > 0) {
+                let rows = Math.ceil(totalItems / cols);
+                let itemHeight = w * 1.5;
+                let exactHeight = itemHeight + ((rows - 1) * (itemHeight + my));
+                
+                collage.style.transform = `scale(${boardScale})`;
+                collage.style.transformOrigin = 'top left';
+                
+                let stage = document.getElementById('stage');
+                stage.style.width = (exactWidth * boardScale) + 'px';
+                stage.style.height = (exactHeight * boardScale) + 'px';
+                
+            } else {
+                collage.style.transform = `scale(1)`;
+                document.getElementById('stage').style.width = 'auto';
+                document.getElementById('stage').style.height = 'auto';
+            }
+            updateZ(); 
+        }
+
+        function fitToScreen() {
+            const wrapperWidth = document.querySelector('.stage-wrapper').clientWidth - 40; 
+            let w = parseFloat(document.getElementById('w').value) || 150;
+            let mx = parseFloat(document.getElementById('mx').value) || -30;
+            let cols = Math.max(1, parseInt(document.getElementById('cols').value) || 13);
+            let exactWidth = w + ((cols - 1) * (w + mx)); 
+            let neededScale = wrapperWidth / exactWidth;
+            if (neededScale > 1) neededScale = 1; 
+            document.getElementById('boardZoom').value = Math.round(neededScale * 100);
+            refresh();
+        }
+
+        function toggleEditMode(btn) {
+            collage.classList.toggle('edit-mode-active');
+            btn.classList.toggle('bg-pink-500'); btn.classList.toggle('bg-slate-700/80');
+            if(!collage.classList.contains('edit-mode-active')) closeControlPad();
+        }
+
+        function itemClicked(item) {
+            if(!collage.classList.contains('edit-mode-active')) return;
+            if(activeItem) activeItem.classList.remove('active-editing');
+            activeItem = item; activeItem.classList.add('active-editing');
+            controlPad.style.display = 'flex';
+            setTimeout(() => { controlPad.classList.add('show-pad'); lucide.createIcons(); }, 10);
+        }
+
+        function closeControlPad() {
+            if(activeItem) activeItem.classList.remove('active-editing');
+            activeItem = null; controlPad.classList.remove('show-pad');
+            setTimeout(() => controlPad.style.display = 'none', 300);
+        }
+
+        function adjustActive(dx, dy) {
+            if(!activeItem) return;
+            let currentTx = parseFloat(activeItem.style.getPropertyValue('--tx')) || 0;
+            let currentTy = parseFloat(activeItem.style.getPropertyValue('--ty')) || 0;
+            activeItem.style.setProperty('--tx', (currentTx + dx) + 'px');
+            activeItem.style.setProperty('--ty', (currentTy + dy) + 'px');
+        }
+
+        function scaleActive(ds) {
+            if(!activeItem) return;
+            let currentScale = parseFloat(activeItem.style.getPropertyValue('--ls')) || 1;
+            activeItem.style.setProperty('--ls', Math.max(0.5, Math.min(3, currentScale + ds)));
+        }
+
+        function deleteActive() { if(!activeItem) return; activeItem.remove(); closeControlPad(); refresh(); }
+
+        document.getElementById('file').onchange = async (e) => {
+            const files = Array.from(e.target.files);
+            if(!files.length) return;
+            for(let i = 0; i < files.length; i++) {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.style.setProperty('--ls', 1);
+                const fileUrl = URL.createObjectURL(files[i]);
+                div.setAttribute('data-url', fileUrl); 
+                // เพิ่ม lazy loading สำหรับอัปโหลดเองด้วย
+                div.innerHTML = `<img src="${fileUrl}" loading="lazy" decoding="async">`;
+                div.onclick = function() { itemClicked(this); }; 
+                collage.appendChild(div);
+            }
+            refresh();
+        };
+
+        async function autoCropImage(originalUrl, fallbackThumb) {
+            return new Promise((resolve) => {
+                const img = new Image(); img.crossOrigin = "Anonymous"; 
+                img.src = 'https://wsrv.nl/?url=' + encodeURIComponent(originalUrl) + '&output=png';
+                img.onload = () => {
+                    try {
+                        const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d');
+                        cvs.width = img.width; cvs.height = img.height; ctx.drawImage(img, 0, 0);
+                        const data = ctx.getImageData(0,0,cvs.width,cvs.height).data;
+                        let t=cvs.height, b=0, l=cvs.width, r=0, found=false;
+                        for(let y=0; y<cvs.height; y++) for(let x=0; x<cvs.width; x++) 
+                            if(data[(y*cvs.width+x)*4+3] > 5) { t=Math.min(t,y); b=Math.max(b,y); l=Math.min(l,x); r=Math.max(r,x); found=true; }
+                        if(found) {
+                            const cCvs = document.createElement('canvas'); cCvs.width = r-l+1; cCvs.height = b-t+1;
+                            cCvs.getContext('2d').drawImage(img, l, t, cCvs.width, cCvs.height, 0, 0, cCvs.width, cCvs.height);
+                            resolve(cCvs.toDataURL());
+                        } else resolve(fallbackThumb);
+                    } catch(e) { resolve(fallbackThumb); } 
+                };
+                img.onerror = () => resolve(fallbackThumb);
+            });
+        }
+
+        async function openLibrary() {
+            document.getElementById('libraryModal').classList.remove('hidden');
+            if (allSkins.length === 0) {
+                load.style.display = 'flex';
+                try {
+                    const res = await fetch(csvUrl); const text = await res.text(); const rows = text.split('\n').slice(1);
+                    allSkins = rows.map(r => {
+                        const c = r.split(','); const fileId = c[2]?.match(/[-\w]{25,}/)?.[0];
+                        return { char: c[0]?.trim(), name: c[1]?.trim(), originalUrl: `https://drive.google.com/uc?export=view&id=${fileId}`, thumbUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` };
+                    }).filter(s => s.originalUrl);
+                    renderFilters(); renderLibrary(allSkins);
+                } catch (e) { alert("Error loading data."); }
+                load.style.display = 'none';
+            } else renderLibrary(allSkins);
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('charFilter'); const chars = [...new Set(allSkins.map(s => s.char))];
+            container.innerHTML = `<button onclick="filterChar('all', this)" class="char-btn active px-4 py-1.5 rounded-full bg-theme-primary/80 border border-theme-primary text-[10px] font-bold shrink-0">ทั้งหมด</button>` + 
+                chars.map(c => `<button onclick="filterChar('${c}', this)" class="char-btn px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-[10px] font-bold shrink-0 hover:bg-black/60 transition-colors">${c}</button>`).join('');
+        }
+
+        function filterChar(name, btn) {
+            document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+            renderLibrary(name === 'all' ? allSkins : allSkins.filter(s => s.char === name));
+        }
+
+        function toggleSkinSelect(url, thumb, element) {
+            const idx = selectedSkins.findIndex(s => s.url === url);
+            if (idx > -1) { selectedSkins.splice(idx, 1); element.classList.remove('skin-selected'); } 
+            else { selectedSkins.push({ url, thumb }); element.classList.add('skin-selected'); }
+            document.getElementById('selectCount').innerText = selectedSkins.length;
+            document.getElementById('confirmBtn').classList.toggle('opacity-50', selectedSkins.length === 0);
+            document.getElementById('confirmBtn').classList.toggle('pointer-events-none', selectedSkins.length === 0);
+        }
+
+        function renderLibrary(skins) {
+            const grid = document.getElementById('libGrid');
+            const boardUrls = Array.from(document.querySelectorAll('.item')).map(el => el.getAttribute('data-url'));
+            grid.innerHTML = skins.map(s => {
+                const isOnBoard = boardUrls.includes(s.originalUrl);
+                return `<div ${isOnBoard ? '' : `onclick="toggleSkinSelect('${s.originalUrl}', '${s.thumbUrl}', this)"`} class="relative bg-black/30 p-1.5 rounded-2xl border ${isOnBoard ? 'opacity-50 border-emerald-500/50' : 'border-white/10 cursor-pointer hover:border-blue-400/50 hover:bg-black/50 transition-all'}">
+                    ${isOnBoard ? `<div class="absolute inset-0 flex items-center justify-center z-10"><span class="bg-emerald-500/90 backdrop-blur text-white text-[8px] px-2 py-1 rounded-full font-bold shadow-md">บนบอร์ด</span></div>` : ''}
+                    <img src="${s.thumbUrl}" loading="lazy" decoding="async" class="w-full aspect-[3/4] object-contain object-bottom bg-black/20 rounded-xl">
+                    <p class="text-[8px] text-center mt-1 truncate font-medium text-white/70">${s.name}</p>
+                </div>`;
+            }).join(''); lucide.createIcons();
+        }
+
+        async function confirmSelection() {
+            closeLibrary(); load.style.display = 'flex';
+            const total = selectedSkins.length;
+            for (let i = 0; i < total; i++) {
+                const cropped = await autoCropImage(selectedSkins[i].url, selectedSkins[i].thumb);
+                const div = document.createElement('div'); div.className = 'item'; div.style.setProperty('--ls', 1);
+                div.setAttribute('data-url', selectedSkins[i].url); 
+                div.innerHTML = `<img src="${cropped}" loading="lazy" decoding="async">`;
+                div.onclick = function() { itemClicked(this); }; 
+                collage.appendChild(div);
+                let p = Math.round(((i + 1) / total) * 100);
+                document.getElementById('progressBar').style.width = p + '%';
+                document.getElementById('progressText').innerText = `${p}% (${i+1}/${total})`;
+            }
+            refresh(); load.style.display = 'none'; selectedSkins = [];
+        }
+
+        // 🚨 แก้ไขฟังก์ชันบันทึกภาพใหม่ทั้งหมดตรงนี้ครับ
+        async function save() {
+            if(!collage.children.length) {
+                alert('กระดานว่างเปล่าครับพี่เอย! รบกวนเพิ่มสกินก่อนบันทึกนะครับ');
+                return; 
+            }
+            closeControlPad(); 
+            collage.classList.remove('edit-mode-active');
+            load.style.display = 'flex';
+            
+            const bz = document.getElementById('boardZoom').value;
+            document.getElementById('boardZoom').value = 100; 
+            refresh();
+            
+            const wrap = document.querySelector('.stage-wrapper');
+            wrap.style.width = 'max-content'; 
+            wrap.style.overflow = 'visible';
+            collage.style.padding = '40px'; 
+            collage.style.boxSizing = 'content-box';
+            
+            // รอเบราว์เซอร์ Render ภาพให้สมบูรณ์
+            await new Promise(r => setTimeout(r, 800));
+            
+            try {
+                const cvs = await html2canvas(collage, { 
+                    scale: 2, 
+                    backgroundColor: null, 
+                    useCORS: true,
+                    allowTaint: true,
+                    windowWidth: collage.scrollWidth,
+                    windowHeight: collage.scrollHeight
+                });
+                
+                const a = document.createElement('a'); 
+                a.download = `NONIOAEY-Final-HD.png`; 
+                a.href = cvs.toDataURL("image/png"); 
+                
+                document.body.appendChild(a); 
+                a.click();
+                document.body.removeChild(a); 
+                
+            } catch (err) {
+                console.error('เกิดข้อผิดพลาดในการบันทึก:', err);
+                alert('เซฟรูปไม่สำเร็จครับ ลองตรวจสอบการเชื่อมต่ออินเทอร์เน็ตนะครับ');
+            } finally {
+                collage.style.padding = '0'; 
+                document.getElementById('boardZoom').value = bz;
+                wrap.style.width = ''; 
+                wrap.style.overflow = '';
+                refresh(); 
+                load.style.display = 'none';
+            }
+        }
+
+        new Sortable(collage, { animation: 200, delay: 150, onEnd: refresh });
+        refresh();
+        function closeLibrary() { document.getElementById('libraryModal').classList.add('hidden'); }
+    </script>
+</body>
+</html>
